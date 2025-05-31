@@ -154,8 +154,15 @@
 
   async function fetchEmployees() {
     try {
-      const res = await fetch(API_URL);
-      return await res.json();
+      const res = await fetch(API_URL, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      const data = await res.json();
+      console.log("Fetched employees:", data); // Debug log
+      return data;
     } catch (err) {
       console.error('Error fetching employees:', err);
       return [];
@@ -318,6 +325,14 @@
 
     doc.save('employee_report.pdf');
   };
+
+  window.onload = () => {
+    updateTable();
+  };
+</script>
+</body>
+</html>
+
 
   window.onload = () => {
     updateTable();
