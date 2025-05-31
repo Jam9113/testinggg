@@ -215,45 +215,51 @@
     saveBtn.textContent = 'Update Employee Data';
   }
 
-  async function updateTable() {
-    const employees = await fetchEmployees();
-    tbody.innerHTML = '';
-
-    if (employees.length > 0) {
-      employees.forEach(emp => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${emp.name}</td>
-          <td>${emp.position}</td>
-          <td>${emp.department}</td>
-          <td>${emp.monthlySalary}</td>
-          <td>${emp.timeIn}</td>
-          <td>${emp.timeOut}</td>
-          <td>
-            <button class="action-btn edit-btn" data-id="${emp._id}">Edit</button>
-            <button class="action-btn delete-btn" data-id="${emp._id}">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      table.style.display = 'table'; // ✅ FORCE table to show
-
-      document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.onclick = () => editEmployee(btn.dataset.id);
-      });
-
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.onclick = () => {
-          if (confirm('Are you sure you want to delete this employee?')) {
-            deleteEmployee(btn.dataset.id);
-          }
-        };
-      });
-    } else {
-      table.style.display = 'none'; // Hide if no data
-    }
+async function updateTable() {
+  const employees = await fetchEmployees();
+  if (!Array.isArray(employees)) {
+    alert('Error fetching employees.');
+    return;
   }
+
+  tbody.innerHTML = '';
+
+  if (employees.length > 0) {
+    document.getElementById('employeeTable').style.display = 'table';
+
+    employees.forEach(emp => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${emp.name}</td>
+        <td>${emp.position}</td>
+        <td>${emp.department}</td>
+        <td>${emp.monthlySalary}</td>
+        <td>${emp.timeIn}</td>
+        <td>${emp.timeOut}</td>
+        <td>
+          <button class="action-btn edit-btn" data-id="${emp._id}">Edit</button>
+          <button class="action-btn delete-btn" data-id="${emp._id}">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.onclick = () => editEmployee(btn.dataset.id);
+    });
+
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.onclick = () => {
+        if (confirm('Are you sure you want to delete this employee?')) {
+          deleteEmployee(btn.dataset.id);
+        }
+      };
+    });
+  } else {
+    document.getElementById('employeeTable').style.display = 'none';
+  }
+}
+
 
   saveBtn.onclick = async () => {
     const name = document.getElementById('name').value.trim();
@@ -285,27 +291,40 @@
   };
 
   exportPdfBtn.onclick = async () => {
-    const jsPDFModule = window.jspdf;
-    if (!jsPDFModule) {
-      alert('Failed to load jsPDF. Please check your script includes.');
-      return;
-    }
+  const jsPDFModule = window.jspdf;
+  if (!jsPDFModule) {
+    alert('Failed to load jsPDF.');
+    return;
+  }
 
-    const doc = new jsPDFModule.jsPDF();
-    doc.setFontSize(18);
-    doc.text("Employee Report", 14, 20);
+  const doc = new jsPDFModule.jsPDF();
+  doc.setFontSize(18);
+  doc.text("Employee Report", 14, 20);
 
-    const employees = await fetchEmployees();
-    if (!employees.length) return alert('No employees to export.');
+  const employees = await fetchEmployees();
+  if (!employees || !employees.length) {
+    alert('No employees to export.');
+    return;
+  }
 
-    const rows = employees.map(emp => [
-      emp.name ?? '',
-      emp.position ?? '',
-      emp.department ?? '',
-      String(emp.monthlySalary ?? ''),
-      emp.timeIn ?? '',
-      emp.timeOut ?? ''
-    ]);
+  const rows = employees.map(emp => [
+    emp.name,
+    emp.position,
+    emp.department,
+    String(emp.monthlySalary),
+    emp.timeIn,
+    emp.timeOut
+  ]);
+
+  doc.autoTable({
+    startY: 30,
+    head: [['Name', 'Position', 'Department', 'Monthly Salary', 'Time In', 'Time Out']],
+    body: rows
+  });
+
+  doc.save('employee_report.pdf');
+};
+
 
     doc.autoTable({
       startY: 30,
