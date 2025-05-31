@@ -99,6 +99,7 @@
     }
   </style>
 
+  <!-- jsPDF and jsPDF-AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -145,22 +146,18 @@
   </div>
 
 <script>
-  // ✅ Replace this with your actual ngrok URL
-  const API_URL = 'https://0127-103-62-155-196.ngrok-free.app/api/employees';
-
+  const API_URL = "https://0127-103-62-155-196.ngrok-free.app/api/employees";
   const saveBtn = document.getElementById('saveBtn');
   const exportPdfBtn = document.getElementById('exportPdfBtn');
   const tbody = document.querySelector('#employeeTable tbody');
-  const table = document.getElementById('employeeTable');
   let editId = null;
 
   async function fetchEmployees() {
     try {
       const res = await fetch(API_URL);
-      const data = await res.json();
-      return data;
+      return await res.json();
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('Error fetching employees:', err);
       return [];
     }
   }
@@ -215,6 +212,11 @@
 
   async function updateTable() {
     const employees = await fetchEmployees();
+    const table = document.getElementById('employeeTable');
+    const tbody = table.querySelector('tbody');
+
+    if (!Array.isArray(employees)) return;
+
     tbody.innerHTML = '';
 
     if (employees.length > 0) {
@@ -242,7 +244,7 @@
 
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.onclick = () => {
-          if (confirm('Are you sure?')) {
+          if (confirm('Are you sure you want to delete this employee?')) {
             deleteEmployee(btn.dataset.id);
           }
         };
@@ -269,10 +271,10 @@
     try {
       if (editId) {
         await updateEmployee(editId, employee);
-        alert('Employee updated!');
+        alert('Employee updated successfully!');
       } else {
         await addEmployee(employee);
-        alert('Employee added!');
+        alert('Employee added successfully!');
       }
       clearForm();
       await updateTable();
@@ -283,20 +285,26 @@
 
   exportPdfBtn.onclick = async () => {
     const jsPDFModule = window.jspdf;
+    if (!jsPDFModule) {
+      alert('Failed to load jsPDF.');
+      return;
+    }
+
     const doc = new jsPDFModule.jsPDF();
     doc.setFontSize(18);
     doc.text("Employee Report", 14, 20);
 
     const employees = await fetchEmployees();
-    if (!employees.length) {
-      return alert('No employees to export.');
+    if (!employees || !employees.length) {
+      alert('No employees to export.');
+      return;
     }
 
     const rows = employees.map(emp => [
       emp.name,
       emp.position,
       emp.department,
-      emp.monthlySalary.toString(),
+      String(emp.monthlySalary),
       emp.timeIn,
       emp.timeOut
     ]);
@@ -311,7 +319,10 @@
     doc.save('employee_report.pdf');
   };
 
-  window.onload = updateTable;
+  window.onload = () => {
+    updateTable();
+  };
 </script>
 </body>
 </html>
+
