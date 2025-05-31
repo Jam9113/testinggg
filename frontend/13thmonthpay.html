@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>13th Month Pay Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #4A90E2;
+      padding: 20px;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: #3B5998;
+      padding: 30px 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px #222;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 700;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    select {
+      background-color: #5773b9;
+      color: white;
+      cursor: pointer;
+    }
+    button {
+      background-color: #6AB04C;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      transition: background-color 0.3s ease;
+    }
+    button:disabled {
+      background-color: #95c47f;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background-color: #4A852D;
+    }
+    .export-btn {
+      background-color: #FF5722;
+      margin-top: 12px;
+    }
+    .export-btn:hover:not(:disabled) {
+      background-color: #cc4600;
+    }
+     .centered-logo {
+      display: block;
+      margin: 0 auto 20px auto;
+      max-width: 100px;
+      height: auto;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: 700;
+      text-align: center;
+      font-size: 18px;
+      min-height: 24px;
+    }
+    #message {
+      margin-top: 10px;
+      text-align: center;
+      font-weight: 600;
+      min-height: 20px;
+    }
+    table {
+      margin-top: 30px;
+      width: 100%;
+      border-collapse: collapse;
+      background: #2E3B55;
+      color: white;
+      display: none;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #4A90E2;
+      text-align: center;
+    }
+    th {
+      background-color: #1E2A43;
+    }
+    .entry-no-history {
+      font-style: italic;
+      text-align: center;
+      margin-top: 15px;
+      color: #ccc;
+    }
+  </style>
+  <!-- jsPDF UMD -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <img src="PIKIFI LOGO.png" alt="Pikifi Logo" class="centered-logo" />
+    <h2>13th Month Pay Calculator</h2>
+
+    <label for="newName">New Employee Name</label>
+    <input type="text" id="newName" placeholder="Enter employee name" maxlength="50" />
+
+    <label for="newSalary">Monthly Salary (₱)</label>
+    <input type="number" id="newSalary" placeholder="Enter monthly salary" min="0" step="0.01" />
+
+    <button id="addEmployeeBtn">Add New Employee</button>
+
+    <hr style="margin: 25px 0; border-color: #5773b9;" />
+
+    <label for="employeeSelect">Select Employee</label>
+    <select id="employeeSelect">
+      <option value="">-- Select --</option>
+    </select>
+
+    <button id="calculateBtn">Calculate</button>
+    <button id="downloadPdfBtn" class="export-btn">Download PDF</button>
+
+    <div id="result"></div>
+    <div id="message"></div>
+
+    <table id="historyTable">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>13th Month Pay (₱)</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div id="noHistoryMsg" class="entry-no-history">Select an employee to see history</div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'http://localhost:3000/api';
+
+    const employeeSelect = document.getElementById('employeeSelect');
+    const resultDiv = document.getElementById('result');
+    const messageDiv = document.getElementById('message');
+    const historyTable = document.getElementById('historyTable');
+    const historyTbody = historyTable.querySelector('tbody');
+    const noHistoryMsg = document.getElementById('noHistoryMsg');
+    const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+    const newNameInput = document.getElementById('newName');
+    const newSalaryInput = document.getElementById('newSalary');
+    const calculateBtn = document.getElementById('calculateBtn');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    function formatCurrency(num) {
+      return num.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
+    }
+
+    async function loadEmployees() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/employees`);
+        if (!res.ok) throw new Error('Failed to fetch employees');
+        const employees = await res.json();
+        employeeSelect.innerHTML = '<option value="">-- Select --</option>';
+        employees.forEach(emp => {
+          // Use consistent property casing for salary
+          const salary = emp.Monthlysalary !== undefined ? emp.Monthlysalary : emp.monthlySalary || 0;
+          const option = document.createElement('option');
+          option.value = emp._id || emp.id || '';
+          option.textContent = `${emp.name} (${formatCurrency(salary)})`;
+          employeeSelect.appendChild(option);
+        });
+      } catch (err) {
+        showMessage('Error loading employees.', true);
+        console.error(err);
+      }
+    }
+
+    async function loadHistory(employeeId) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/history/${employeeId}`);
+        if (!res.ok) throw new Error('Failed to fetch history');
+        const history = await res.json();
+        historyTbody.innerHTML = '';
+
+        if (history.length === 0) {
+          historyTable.style.display = 'none';
+          noHistoryMsg.textContent = 'No calculation history yet.';
+          noHistoryMsg.style.display = 'block';
+          return;
+        }
+
+        noHistoryMsg.style.display = 'none';
+        historyTable.style.display = 'table';
+
+        history.forEach(entry => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${employeeSelect.options[employeeSelect.selectedIndex].text}</td>
+            <td>${formatCurrency(entry.pay)}</td>
+            <td>${new Date(entry.createdAt).toLocaleString()}</td>
+          `;
+          historyTbody.appendChild(tr);
+        });
+      } catch (err) {
+        showMessage('Error loading history.', true);
+        console.error(err);
+      }
+    }
+
+    function showMessage(msg, isError = false) {
+      messageDiv.textContent = msg;
+      messageDiv.style.color = isError ? '#ff8080' : '#b4fbbb';
+      messageDiv.style.display = msg ? 'block' : 'none';
+    }
+ addEmployeeBtn.addEventListener('click', async () => {
+  const name = newNameInput.value.trim();
+  const salary = parseFloat(newSalaryInput.value);
+
+  if (!name || name.length > 50 || isNaN(salary) || salary < 0) {
+    alert('Please provide valid name and salary.');
+    return;
+  }
+
+  addEmployeeBtn.disabled = true;
+  showMessage('');
+  try {
+    
+    const res = await fetch(`${API_BASE_URL}/employees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        position: 'Employee',         
+        department: 'General',        
+        monthlySalary: salary          
+      })
+    });
+
+    if (!res.ok) throw new Error('Failed to add employee');
+    newNameInput.value = '';
+    newSalaryInput.value = '';
+    await loadEmployees();
+    showMessage('Employee added successfully!');
+  } catch (err) {
+    showMessage('Error adding employee.', true);
+    console.error(err);
+  }
+  addEmployeeBtn.disabled = false;
+});
+
+
+    calculateBtn.addEventListener('click', async () => {
+      const employeeId = employeeSelect.value;
+      if (!employeeId) {
+        alert('Please select an employee');
+        return;
+      }
+
+      calculateBtn.disabled = true;
+      showMessage('');
+      resultDiv.textContent = '';
+      try {
+        const res = await fetch(`${API_BASE_URL}/calculate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeId })
+        });
+
+        if (!res.ok) throw new Error('Calculation failed');
+        const data = await res.json();
+
+        resultDiv.textContent = `13th Month Pay: ${formatCurrency(data.pay)}`;
+        await loadHistory(employeeId);
+        showMessage('Calculation successful!');
+      } catch (err) {
+        showMessage('Error during calculation.', true);
+        console.error(err);
+      }
+      calculateBtn.disabled = false;
+    });
+
+    downloadPdfBtn.addEventListener('click', () => {
+      if (!resultDiv.textContent) {
+        alert('Please calculate 13th month pay first.');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('13th Month Pay Result', 20, 20);
+      doc.setFontSize(12);
+      doc.text(`Employee: ${employeeSelect.options[employeeSelect.selectedIndex].text}`, 20, 40);
+      doc.text(resultDiv.textContent, 20, 50);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 65);
+      doc.save('13th-month-pay.pdf');
+    });
+
+    employeeSelect.addEventListener('change', () => {
+      const selectedId = employeeSelect.value;
+      if (selectedId) {
+        loadHistory(selectedId);
+      } else {
+        historyTbody.innerHTML = '';
+        resultDiv.textContent = '';
+        historyTable.style.display = 'none';
+        noHistoryMsg.textContent = 'Select an employee to see history';
+        noHistoryMsg.style.display = 'block';
+      }
+    });
+
+    // Initial load
+    loadEmployees();
+  </script>
+</body>
+</html>
