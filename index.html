@@ -339,6 +339,32 @@
       </div>
     </section>
 
+  <section class="attendance-section p-4 mt-6 rounded-xl shadow bg-white dark:bg-gray-800">
+  <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-white">Attendance</h2>
+  <form id="attendance-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <input type="text" id="attendee-name" placeholder="Employee Name" required class="p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+    <input type="date" id="attendance-date" required class="p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+    <select id="attendance-status" required class="p-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+      <option value="">Select Status</option>
+      <option value="Present">Present</option>
+      <option value="Absent">Absent</option>
+      <option value="Late">Late</option>
+    </select>
+    <button type="submit" class="col-span-1 md:col-span-3 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Mark Attendance</button>
+  </form>
+
+  <table class="w-full text-left border-collapse mt-4">
+    <thead>
+      <tr class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white">
+        <th class="p-2 border">Name</th>
+        <th class="p-2 border">Date</th>
+        <th class="p-2 border">Status</th>
+      </tr>
+    </thead>
+    <tbody id="attendance-table-body" class="dark:text-white"></tbody>
+  </table>
+</section>
+
   </div>
 
   <script>
@@ -383,6 +409,57 @@
         scheduleRows.innerHTML = '';
       }
     }
+    document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("attendance-form");
+  const tableBody = document.getElementById("attendance-table-body");
+
+  function getAttendance() {
+    return JSON.parse(localStorage.getItem("attendanceData") || "[]");
+  }
+
+  function saveAttendance(data) {
+    localStorage.setItem("attendanceData", JSON.stringify(data));
+  }
+
+  function renderAttendance() {
+    const attendance = getAttendance();
+    tableBody.innerHTML = "";
+    attendance.forEach(entry => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="p-2 border">${entry.name}</td>
+        <td class="p-2 border">${entry.date}</td>
+        <td class="p-2 border">
+          <span class="px-2 py-1 rounded ${
+            entry.status === "Present" ? "bg-green-200 text-green-800" :
+            entry.status === "Absent" ? "bg-red-200 text-red-800" :
+            "bg-yellow-200 text-yellow-800"
+          }">${entry.status}</span>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const name = document.getElementById("attendee-name").value.trim();
+    const date = document.getElementById("attendance-date").value;
+    const status = document.getElementById("attendance-status").value;
+
+    if (!name || !date || !status) return alert("Please fill all fields.");
+
+    const newEntry = { name, date, status };
+    const attendance = getAttendance();
+    attendance.push(newEntry);
+    saveAttendance(attendance);
+    renderAttendance();
+    form.reset();
+  });
+
+  renderAttendance();
+});
+
 
     function addScheduleRow(day, start, end, notes) {
       clearNoSchedulesRow();
